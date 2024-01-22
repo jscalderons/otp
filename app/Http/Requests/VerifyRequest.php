@@ -26,6 +26,7 @@ class VerifyRequest extends FormRequest
         return [
             'user' => 'required|string',
             'code' => 'required|string',
+            'platform' => 'required|string|in:Regislab,Dashboard',
         ];
     }
 

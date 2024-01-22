@@ -5,39 +5,42 @@ namespace App\Http\Controllers;
 use App\Http\Requests\SendRequest;
 use App\Http\Requests\VerifyRequest;
 use App\Models\TwoFactor;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use OTPHP\TOTP;
 
 class TwoFactorController extends Controller
 {
-    private function registerTwoFactor(Request $request) {
+    private function generateTwoFactorRecord($user, $email, $platform) {
         $otp = TOTP::generate();
-        $result = TwoFactor::find($request->user);
+        $record = TwoFactor::where([
+            'df_usuario' => $user,
+            'df_correo' => $email,
+            'df_plataforma' => $platform,
+        ])->first();
 
-        if (!$result) {
+        if (!$record) {
             return TwoFactor::create([
                 'df_codigo' => $otp->now(),
-                'df_correo' => $request->email,
-                'df_usuario' => $request->user,
-                'df_plataforma' => $request->plataforma,
-                'df_fecha_vencimiento' => now()->addMinutes(5),
+                'df_correo' => $email,
+                'df_usuario' => $user,
+                'df_plataforma' => $platform,
+                'df_fecha_vencimiento' => now()->addMinutes(config('auth.otp.expire')),
             ]);
         }
 
-        $result->update([
+        $record->update([
             'df_codigo' => $otp->now(),
-            'df_intentos' => $result->df_intentos + 1,
-            'df_fecha_vencimiento' => now()->addMinutes(5),
+            'df_fecha_vencimiento' => now()->addMinutes(config('auth.otp.expire')),
         ]);
 
-        return $result;
+        return $record;
     }
 
     public function send(SendRequest $request) {
         try {
-            $record = $this->registerTwoFactor($request);
-
+            $record = $this->generateTwoFactorRecord($request->user, $request->email, $request->platform);
             $result = Mail::to($request->email)->send(new \App\Mail\VerificationCodeEmail($record));
 
             if (!$result) {
@@ -67,28 +70,44 @@ class TwoFactorController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
     public function verify(VerifyRequest $request) {
-        $result = TwoFactor::find($request->user);
+        $record = TwoFactor::where([
+            'df_usuario' => $request->user,
+            'df_plataforma' => $request->platform,
+        ])->first();
 
-        if (!$result) {
+        if (!$record) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validación invalida',
+                'message' => 'Ocurrió un problema al intentar validar',
             ]);
         }
 
-        if ($result->df_fecha_vencimiento < now()) {
+        if ($record->df_fecha_vencimiento > now()) {
+            $record->update(['df_intentos' => $record->df_intentos + 1]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Su codigo de verificación ha expirado',
             ]);
         }
 
-        if ($result->df_codigo != $request->code) {
+        if ($record->df_codigo != $request->code) {
+            $record->update(['df_intentos' => $record->df_intentos + 1]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Su codigo de verificación es incorrecto o ha expirado',
+                'message' => 'Su codigo de verificación es incorrecto',
             ]);
         }
+
+        if ($record->df_intentos > config('auth.otp.limit')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ha superado el limite de intentos, por favor espere 5 minutos para volver a intentarlo',
+            ]);
+        }
+
+        $record->delete();
 
         return response()->json([
             'success' => true,

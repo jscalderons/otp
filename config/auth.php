@@ -112,4 +112,10 @@ return [
 
     'password_timeout' => 10800,
 
+    'otp' => [
+        // vencimiento del código de verificación en minutos
+        'expiration' => 5,
+        // límite de intentos de verificación
+        'limit' => 5,
+    ]
 ];
