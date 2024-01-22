@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\TwoFactor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -13,14 +14,14 @@ class VerificationCodeEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $code;
+    public TwoFactor $record;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(string $code)
+    public function __construct(TwoFactor $record)
     {
-        $this->code = $code;
+        $this->record = $record;
     }
 
     /**
@@ -29,7 +30,7 @@ class VerificationCodeEmail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Verification Code Email',
+            subject: 'Su código de verificación es ' . $this->record->df_codigo,
         );
     }
 

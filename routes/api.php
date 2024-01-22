@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\OtpController;
+use App\Http\Controllers\TwoFactorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -20,5 +20,5 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // OTP Service
-Route::post('/otp/send', [OtpController::class, 'send']);
-Route::post('/otp/verify', [OtpController::class, 'verify']);
+Route::post('/otp/send', [TwoFactorController::class, 'send']);
+Route::post('/otp/verify', [TwoFactorController::class, 'verify']);

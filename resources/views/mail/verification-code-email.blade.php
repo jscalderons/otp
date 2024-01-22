@@ -1,12 +1,12 @@
 <x-mail::message>
-# Introduction
+<img src="{{ $message->embed(public_path('images/logo.png')) }}" alt="{{ config('app.name') }}" width="360px">
 
-Tu código de verificación es: {{ $code }}
+Su código de verificación es:
 
-<x-mail::button :url="''">
-Button Text
-</x-mail::button>
+# {{ $record->df_codigo }}
 
-Thanks,<br>
-{{ config('app.name') }}
+Si no intentaste iniciar sesión, no se requiere ninguna acción adicional.
+
+Atentamente,<br>
+{{ config('app.name') }} <br>
 </x-mail::message>
