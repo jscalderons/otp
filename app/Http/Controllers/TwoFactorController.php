@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SendRequest;
+use App\Http\Requests\VerifyRequest;
 use App\Models\TwoFactor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -32,11 +34,18 @@ class TwoFactorController extends Controller
         return $result;
     }
 
-    public function send(Request $request) {
+    public function send(SendRequest $request) {
         try {
             $record = $this->registerTwoFactor($request);
 
-            Mail::to($request->email)->send(new \App\Mail\VerificationCodeEmail($record));
+            $result = Mail::to($request->email)->send(new \App\Mail\VerificationCodeEmail($record));
+
+            if (!$result) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ha ocurrido un error al enviar el correo electrónico',
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -51,20 +60,39 @@ class TwoFactorController extends Controller
         }
     }
 
-    // TODO: Realizar las validaciones
-    public function verify(Request $request) {
+    /**
+     * Valida el código de verificación enviado por correo electrónico
+     *
+     * @param VerifyRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function verify(VerifyRequest $request) {
         $result = TwoFactor::find($request->user);
 
-        if ($result->df_codigo == $request->code && $result->df_fecha_vencimiento > now()) {
+        if (!$result) {
             return response()->json([
-                'success' => true,
-                'message' => 'Su código de verificación es valido'
+                'success' => false,
+                'message' => 'Validación invalida',
+            ]);
+        }
+
+        if ($result->df_fecha_vencimiento < now()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Su codigo de verificación ha expirado',
+            ]);
+        }
+
+        if ($result->df_codigo != $request->code) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Su codigo de verificación es incorrecto o ha expirado',
             ]);
         }
 
         return response()->json([
-            'success' => false,
-            'message' => 'Su codigo de verificación es incorrecto o ha expirado',
+            'success' => true,
+            'message' => 'Su código de verificación es valido'
         ]);
     }
 }
